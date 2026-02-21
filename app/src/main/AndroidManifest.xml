@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.OffTime">
         <activity
-            android:name=".timer.TimerActivity"
+            android:name=".ui.timer.TimerActivity"
             android:exported="true"
             android:theme="@style/Theme.OffTime">
             <intent-filter>

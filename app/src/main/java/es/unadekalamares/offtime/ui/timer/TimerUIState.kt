@@ -1,4 +1,4 @@
-package es.unadekalamares.offtime.timer
+package es.unadekalamares.offtime.ui.timer
 
 data class TimerUIState(
     val topTimer: String = "0:0:0",

@@ -1,4 +1,4 @@
-package es.unadekalamares.offtime.timer
+package es.unadekalamares.offtime.ui.timer
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
