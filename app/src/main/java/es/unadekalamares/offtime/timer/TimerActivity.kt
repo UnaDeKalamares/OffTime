@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -47,13 +49,13 @@ fun TimerContent() {
     val viewModel = koinViewModel<TimerActivityViewModel>()
     val timer = viewModel.timerUIState.collectAsState()
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Timer(
             modifier = Modifier.weight(1f),
-            value = timer.value.bottomTimer,
+            value = timer.value.topTimer,
             cardPadding = PaddingValues(
                 start = 16.dp,
                 top = 32.dp,
@@ -64,7 +66,7 @@ fun TimerContent() {
         Controls()
         Timer(
             modifier = Modifier.weight(1f),
-            value = timer.value.topTimer,
+            value = timer.value.bottomTimer,
             cardPadding = PaddingValues(
                 start = 16.dp,
                 top = 8.dp,
