@@ -18,6 +18,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -26,8 +27,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import es.unadekalamares.offtime.ui.theme.OffTimeTheme
+import org.koin.compose.viewmodel.koinViewModel
 
 class TimerActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -41,6 +44,8 @@ class TimerActivity : ComponentActivity() {
 
 @Composable
 fun TimerContent() {
+    val viewModel = koinViewModel<TimerActivityViewModel>()
+    val timer = viewModel.timerUIState.collectAsState()
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -48,6 +53,7 @@ fun TimerContent() {
     ) {
         Timer(
             modifier = Modifier.weight(1f),
+            value = timer.value.bottomTimer,
             cardPadding = PaddingValues(
                 start = 16.dp,
                 top = 32.dp,
@@ -58,6 +64,7 @@ fun TimerContent() {
         Controls()
         Timer(
             modifier = Modifier.weight(1f),
+            value = timer.value.topTimer,
             cardPadding = PaddingValues(
                 start = 16.dp,
                 top = 8.dp,
@@ -69,7 +76,11 @@ fun TimerContent() {
 }
 
 @Composable
-fun Timer(modifier: Modifier, cardPadding: PaddingValues) {
+fun Timer(
+    modifier: Modifier,
+    value: String,
+    cardPadding: PaddingValues
+) {
     Box(
         modifier = modifier,
     ) {
@@ -87,7 +98,7 @@ fun Timer(modifier: Modifier, cardPadding: PaddingValues) {
             ) {
                 Text(
                     fontSize = 32.sp,
-                    text = "0:0:0",
+                    text = value,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
