@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">OffTime</string>
+    <string name="timer_notification_channel">Timer</string>
+    <string name="timer_notification_title">OffTime</string>
+    <string name="timer_notification_text">The timer is running</string>
 </resources>
