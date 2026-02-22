@@ -18,7 +18,7 @@ object NotificationsHelper {
     fun createNotificationChannel(context: Context) {
         val channel = NotificationChannelCompat.Builder(
             TIMER_NOTIFICATION_CHANNEL_ID,
-            NotificationManager.IMPORTANCE_DEFAULT
+            NotificationManager.IMPORTANCE_LOW
         ).setName(context.getString(R.string.timer_notification_channel))
             .build()
         notificationManager.createNotificationChannelsCompat(listOf(channel))
@@ -32,6 +32,7 @@ object NotificationsHelper {
             .setContentText(
                 context.getString(R.string.timer_notification_text)
             )
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
 
