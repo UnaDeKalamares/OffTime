@@ -3,4 +3,6 @@
     <string name="timer_notification_channel">Timer</string>
     <string name="timer_notification_title">OffTime</string>
     <string name="timer_notification_text">The timer is running</string>
+    <string name="timer_formatter">%02d:%02d:%02d</string>
+    <string name="timer_default_value">00:00:00</string>
 </resources>

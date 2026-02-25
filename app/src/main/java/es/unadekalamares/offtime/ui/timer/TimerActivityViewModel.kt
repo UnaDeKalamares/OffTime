@@ -1,6 +1,5 @@
 package es.unadekalamares.offtime.ui.timer
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.unadekalamares.offtime.service.TimerService
@@ -12,29 +11,35 @@ import org.koin.core.component.KoinComponent
 
 class TimerActivityViewModel : ViewModel(), KoinComponent {
 
+    private var formattedTopTimer: String = "00:00:00"
+    private var formattedBottomTimer: String = "00:00:00"
+
     private var _timerUIState: MutableStateFlow<TimerUIState> = MutableStateFlow(TimerUIState())
     val timerUIState: StateFlow<TimerUIState> =_timerUIState.asStateFlow()
 
     fun listenToService(service: TimerService) {
         viewModelScope.launch {
-            for (topTimer in service.topTimerChannel) {
-                Log.i("TIMER SERVICE", "Received timer: $topTimer")
-                if (topTimer % 1000 == 0L) {
-                    val seconds = (topTimer / 1000) % 60
-                    val minutes = (seconds / 60) % 60
-                    val hours = (minutes / 60) % 60
-                    val newState = TimerUIState(
-                        topTimer = "$hours:$minutes:$seconds"
-                    )
-                    _timerUIState.value = newState
-                }
-            }
-            service.topTimerStateFlow.collect { topTimer ->
+            for (newTimer in service.timerChannel) {
+                formattedTopTimer = processTime(newTimer.first) ?: formattedTopTimer
+                formattedBottomTimer = processTime(newTimer.second) ?: formattedBottomTimer
                 val newState = TimerUIState(
-                    topTimer = topTimer.toString()
+                    formattedTopTimer,
+                    formattedBottomTimer
                 )
                 _timerUIState.value = newState
             }
+        }
+    }
+
+    private fun processTime(time: Long): String? {
+        if (time % 1000 == 0L) {
+            val seconds = (time / 1000) % 60
+            val minutes = (seconds / 60) % 60
+            val hours = (minutes / 60) % 60
+            val formattedTime = String.format("%02d:%02d:%02d", hours, minutes, seconds)
+            return formattedTime
+        } else {
+            return null
         }
     }
 

@@ -50,17 +50,18 @@ class TimerActivity : ComponentActivity() {
             OffTimeTheme {
                 TimerContent(
                     viewModel = viewModel,
-                    onTopTimerClick = this::startService
+                    onTopTimerClick = this::startService,
+                    onBottomTimerClick = this::startService
                 )
             }
         }
     }
 
-    private fun startService() {
+    private fun startService(isTopTimer: Boolean) {
         val serviceIntent = Intent(this, TimerService::class.java).also {
             bindService(it, serviceConnection, 0)
         }
-        serviceIntent.putExtra(IS_TOP_ARG, true)
+        serviceIntent.putExtra(IS_TOP_ARG, isTopTimer)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)
         } else {
@@ -94,11 +95,14 @@ class TimerActivity : ComponentActivity() {
 @Composable
 fun TimerContent(
     viewModel: TimerActivityViewModel,
-    onTopTimerClick: () -> Unit
+    onTopTimerClick: (Boolean) -> Unit,
+    onBottomTimerClick: (Boolean) -> Unit
 ) {
     val timer = viewModel.timerUIState.collectAsState()
     Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -111,7 +115,7 @@ fun TimerContent(
                 end = 16.dp,
                 bottom = 8.dp
             ),
-            onClick = onTopTimerClick
+            onClick = { onTopTimerClick(true) }
         )
         Controls()
         Timer(
@@ -123,9 +127,7 @@ fun TimerContent(
                 end = 16.dp,
                 bottom = 32.dp
             ),
-            onClick = {
-
-            }
+            onClick = { onBottomTimerClick(false) }
         )
     }
 }
@@ -141,9 +143,11 @@ fun Timer(
         modifier = modifier,
     ) {
         Card(
-            modifier = Modifier.fillMaxSize().padding(
-                cardPadding
-            ),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    cardPadding
+                ),
             elevation = CardDefaults.elevatedCardElevation(
                 defaultElevation = 8.dp
             ),

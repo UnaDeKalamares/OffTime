@@ -5,17 +5,14 @@ import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import es.unadekalamares.offtime.notification.NotificationsHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
@@ -33,21 +30,12 @@ class TimerService : LifecycleService() {
 
     private val notificationsHelper: NotificationsHelper by inject()
 
+    private var isTopTimerRunning: Boolean = true
+
     private var topTimerMillis: Long = 0
     private var bottomTimerMillis: Long = 0
 
-    val topTimerChannel: Channel<Long> = Channel(capacity = 10)
-
-    private val _topTimerStateFlow: MutableStateFlow<Long> = MutableStateFlow(0)
-    val topTimerStateFlow: StateFlow<Long> = _topTimerStateFlow.asStateFlow()
-
-    private val _bottomTimerStateFlow: MutableStateFlow<Long> = MutableStateFlow(0)
-    val bottomTimerStateFlow: StateFlow<Long> = _bottomTimerStateFlow.asStateFlow()
-
-    private var currentTimer: Long = 0
-    private var currentStateFlow: MutableStateFlow<Long>? = null
-
-    private var currentChannel: Channel<Long>? = null
+    val timerChannel: Channel<Pair<Long, Long>> = Channel(CONFLATED)
 
     private var timerJob: Job? = null
 
@@ -61,10 +49,12 @@ class TimerService : LifecycleService() {
         timerJob = lifecycleScope.launch {
             while (true) {
                 delay(100)
-                currentTimer += 100
-                Log.i("TIMER SERVICE", "New currentTimer: $currentTimer")
-                //currentStateFlow?.value = currentTimer
-                currentChannel?.send(currentTimer)
+                if (isTopTimerRunning) {
+                    topTimerMillis += 100
+                } else {
+                    bottomTimerMillis += 100
+                }
+                timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
             }
         }
     }
@@ -72,14 +62,7 @@ class TimerService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
             val isTop = it.getBooleanExtra(IS_TOP_ARG, false)
-            if (isTop) {
-                currentTimer = topTimerMillis
-                currentStateFlow = _topTimerStateFlow
-                currentChannel = topTimerChannel
-            } else {
-                currentTimer = bottomTimerMillis
-                currentStateFlow = _bottomTimerStateFlow
-            }
+            isTopTimerRunning = isTop
 
             notificationsHelper.createNotificationChannel(this@TimerService)
             val notification = notificationsHelper.buildNotification(this@TimerService)
@@ -104,6 +87,7 @@ class TimerService : LifecycleService() {
 
     override fun onDestroy() {
         timerJob?.cancel()
+        timerChannel.cancel()
         super.onDestroy()
     }
 
