@@ -1,5 +1,6 @@
 package es.unadekalamares.offtime.ui.timer
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.unadekalamares.offtime.service.TimerService
@@ -13,6 +14,8 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
 
     private var formattedTopTimer: String = "00:00:00"
     private var formattedBottomTimer: String = "00:00:00"
+
+    private var lastProcessedSeconds: Long = 0
 
     private var _timerUIState: MutableStateFlow<TimerUIState> = MutableStateFlow(TimerUIState())
     val timerUIState: StateFlow<TimerUIState> =_timerUIState.asStateFlow()
@@ -32,11 +35,11 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
     }
 
     private fun processTime(time: Long): String? {
-        if (time % 1000 == 0L) {
-            val seconds = (time / 1000)
+        val seconds = (time / 1000)
+        if (lastProcessedSeconds != seconds) {
+            lastProcessedSeconds = seconds
             val minutes = (seconds / 60)
             val hours = (minutes / 60)
-
             val roundedSeconds = seconds % 60
             val roundedMinutes = minutes % 60
             val roundedHours = hours % 60
@@ -46,6 +49,7 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
                 roundedMinutes,
                 roundedSeconds
             )
+            Log.i("TimerService", "Time: $time; Minutes: $minutes; Seconds: $seconds")
             return formattedTime
         } else {
             return null

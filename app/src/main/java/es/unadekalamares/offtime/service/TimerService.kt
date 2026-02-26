@@ -34,7 +34,9 @@ class TimerService : LifecycleService() {
     private var isTopTimerRunning: Boolean = true
 
     private var topTimerMillis: Long = 0
+    private var topTimerLastSync: Long = 0
     private var bottomTimerMillis: Long = 0
+    private var bottomTimerLastSync: Long = 0
 
     val timerChannel: Channel<Pair<Long, Long>> = Channel(CONFLATED)
 
@@ -50,10 +52,13 @@ class TimerService : LifecycleService() {
         timerJob = lifecycleScope.launch(Dispatchers.Default) {
             while (true) {
                 delay(100)
+                val currentTime = System.currentTimeMillis()
                 if (isTopTimerRunning) {
-                    topTimerMillis += 100
+                    topTimerMillis += currentTime - topTimerLastSync
+                    topTimerLastSync = currentTime
                 } else {
-                    bottomTimerMillis += 100
+                    bottomTimerMillis += currentTime - bottomTimerLastSync
+                    bottomTimerLastSync = currentTime
                 }
                 timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
             }
@@ -64,6 +69,12 @@ class TimerService : LifecycleService() {
         intent?.let {
             val isTop = it.getBooleanExtra(IS_TOP_ARG, false)
             isTopTimerRunning = isTop
+
+            if (isTop) {
+                topTimerLastSync = System.currentTimeMillis()
+            } else {
+                bottomTimerLastSync = System.currentTimeMillis()
+            }
 
             notificationsHelper.createNotificationChannel(this@TimerService)
             val notification = notificationsHelper.buildNotification(this@TimerService)
