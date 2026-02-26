@@ -33,10 +33,19 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
 
     private fun processTime(time: Long): String? {
         if (time % 1000 == 0L) {
-            val seconds = (time / 1000) % 60
-            val minutes = (seconds / 60) % 60
-            val hours = (minutes / 60) % 60
-            val formattedTime = String.format("%02d:%02d:%02d", hours, minutes, seconds)
+            val seconds = (time / 1000)
+            val minutes = (seconds / 60)
+            val hours = (minutes / 60)
+
+            val roundedSeconds = seconds % 60
+            val roundedMinutes = minutes % 60
+            val roundedHours = hours % 60
+            val formattedTime = String.format(
+                "%02d:%02d:%02d",
+                roundedHours,
+                roundedMinutes,
+                roundedSeconds
+            )
             return formattedTime
         } else {
             return null

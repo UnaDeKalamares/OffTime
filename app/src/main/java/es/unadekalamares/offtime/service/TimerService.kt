@@ -9,6 +9,7 @@ import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import es.unadekalamares.offtime.notification.NotificationsHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
@@ -39,14 +40,14 @@ class TimerService : LifecycleService() {
 
     private var timerJob: Job? = null
 
-    override fun onBind(intent: Intent): IBinder? {
+    override fun onBind(intent: Intent): IBinder {
         super.onBind(intent)
         return binder
     }
 
     override fun onCreate() {
         super.onCreate()
-        timerJob = lifecycleScope.launch {
+        timerJob = lifecycleScope.launch(Dispatchers.Default) {
             while (true) {
                 delay(100)
                 if (isTopTimerRunning) {
