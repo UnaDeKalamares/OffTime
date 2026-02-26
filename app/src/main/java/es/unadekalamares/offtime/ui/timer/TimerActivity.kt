@@ -58,6 +58,7 @@ class TimerActivity : ComponentActivity() {
     }
 
     private fun startService(isTopTimer: Boolean) {
+        viewModel.setTopTimerRunning(isTopTimer)
         val serviceIntent = Intent(this, TimerService::class.java).also {
             bindService(it, serviceConnection, 0)
         }
@@ -76,7 +77,7 @@ class TimerActivity : ComponentActivity() {
         ) {
             val binder = service as TimerService.LocalBinder
             timerService = binder.getService()
-            viewModel.listenToService(timerService)
+            viewModel.listenToService(timerService, this@TimerActivity)
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {

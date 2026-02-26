@@ -8,7 +8,9 @@ import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import es.unadekalamares.offtime.R
 import es.unadekalamares.offtime.notification.NotificationsHelper
+import es.unadekalamares.offtime.notification.NotificationsHelper.NOTIFICATION_ID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -77,10 +79,13 @@ class TimerService : LifecycleService() {
             }
 
             notificationsHelper.createNotificationChannel(this@TimerService)
-            val notification = notificationsHelper.buildNotification(this@TimerService)
+            val notification = notificationsHelper.buildNotification(
+                this@TimerService.getString(R.string.timer_notification_text),
+                this@TimerService
+            )
             ServiceCompat.startForeground(
                 this,
-                1,
+                NOTIFICATION_ID,
                 notification,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
