@@ -2,6 +2,7 @@ package es.unadekalamares.offtime
 
 import android.app.Application
 import es.unadekalamares.offtime.di.notificationsHelperModule
+import es.unadekalamares.offtime.di.permissionsManagerModule
 import es.unadekalamares.offtime.di.timerActivityModule
 import es.unadekalamares.offtime.di.timerServiceModule
 import es.unadekalamares.offtime.di.timerActivityViewModelModule
@@ -18,7 +19,8 @@ class TimerApplication : Application() {
                 timerActivityModule,
                 notificationsHelperModule,
                 timerServiceModule,
-                timerActivityViewModelModule)
+                timerActivityViewModelModule,
+                permissionsManagerModule)
             )
         }
     }
