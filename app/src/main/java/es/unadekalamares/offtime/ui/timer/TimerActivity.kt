@@ -181,6 +181,7 @@ class TimerActivity : ComponentActivity() {
                             stopTimer()
                         } else {
                             isPaused.value = true
+                            runningTimer.value = null
                             if (this@TimerActivity::timerService.isInitialized) {
                                 timerService.isPaused = true
                             }
