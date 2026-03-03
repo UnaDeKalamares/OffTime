@@ -18,14 +18,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -42,11 +42,17 @@ import org.koin.android.ext.android.inject
 
 class TimerActivity : ComponentActivity() {
 
+    sealed class RunningTimer {
+        class TopTimer: RunningTimer()
+        class BottomTimer: RunningTimer()
+    }
+
     private val viewModel: TimerActivityViewModel by inject()
     private val permissionsManager: PermissionsManager by inject()
     private lateinit var timerService: TimerService
 
-    private var isTopTimer: Boolean = false
+    private var willTopTimerRun: Boolean = false
+    private var runningTimer: MutableStateFlow<RunningTimer?> = MutableStateFlow(null)
     private var arePermissionsDenied: Boolean = false
     private var didShowRationale: Boolean = false
     private var showSettingsDialog: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -67,7 +73,7 @@ class TimerActivity : ComponentActivity() {
             ActivityResultContracts.RequestPermission()
         ) { isPermissionGranted ->
             if (isPermissionGranted) {
-                startTimer(isTopTimer)
+                startTimer(willTopTimerRun)
             } else if (didShowRationale) {
                 arePermissionsDenied = true
                 lifecycleScope.launch {
@@ -83,7 +89,7 @@ class TimerActivity : ComponentActivity() {
                 permissionsManager.permissionSharedFlow.collectLatest { permissionStatus ->
                     when (permissionStatus) {
                         is PermissionStatus.Granted -> {
-                            startTimer(isTopTimer)
+                            startTimer(willTopTimerRun)
                         }
 
                         is PermissionStatus.Denied -> {
@@ -150,49 +156,45 @@ class TimerActivity : ComponentActivity() {
         onBottomTimerClick: (Boolean) -> Unit
     ) {
         val timer = viewModel.timerUIState.collectAsState()
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            TimerUI(
-                modifier = Modifier.weight(1f),
-                value = timer.value.topTimer,
-                cardPadding = PaddingValues(
-                    start = 16.dp,
-                    top = 32.dp,
-                    end = 16.dp,
-                    bottom = 8.dp
-                ),
-                onClick = { onTopTimerClick(true) }
-            )
-            ControlsUI(
-                isPaused = isPaused.collectAsState().value,
-                onButtonClick = {
-                    if (isPaused.value) {
-                        isPaused.value = false
-                        stopTimer()
-                    } else {
-                        isPaused.value = true
-                        if (this@TimerActivity::timerService.isInitialized) {
-                            timerService.isPaused = true
+        Scaffold(
+            modifier = Modifier.fillMaxSize()
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(MaterialTheme.colorScheme.background),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                TimerUI(
+                    isEnabled = runningTimer.collectAsState().value !is RunningTimer.TopTimer,
+                    modifier = Modifier.weight(1f),
+                    value = timer.value.topTimer,
+                    onClick = { onTopTimerClick(true) }
+                )
+                ControlsUI(
+                    isPaused = isPaused.collectAsState().value,
+                    onButtonClick = {
+                        if (isPaused.value) {
+                            isPaused.value = false
+                            stopTimer()
+                        } else {
+                            isPaused.value = true
+                            if (this@TimerActivity::timerService.isInitialized) {
+                                timerService.isPaused = true
+                            }
                         }
-                    }
-                })
-            TimerUI(
-                modifier = Modifier.weight(1f),
-                value = timer.value.bottomTimer,
-                cardPadding = PaddingValues(
-                    start = 16.dp,
-                    top = 8.dp,
-                    end = 16.dp,
-                    bottom = 32.dp
-                ),
-                onClick = { onBottomTimerClick(false) }
-            )
+                    })
+                TimerUI(
+                    isEnabled = runningTimer.collectAsState().value !is RunningTimer.BottomTimer,
+                    modifier = Modifier.weight(1f),
+                    value = timer.value.bottomTimer,
+                    onClick = { onBottomTimerClick(false) }
+                )
+            }
         }
+
     }
 
     private fun launchPermissionRequest() {
@@ -210,13 +212,22 @@ class TimerActivity : ComponentActivity() {
     }
 
     private fun tryStartTimer(isTopTimer: Boolean) {
-        this.isTopTimer = isTopTimer
+        this.willTopTimerRun = isTopTimer
+        setRunningTimer(isTopTimer)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             lifecycleScope.launch {
                 permissionsManager.checkPermission(this@TimerActivity)
             }
         } else {
             startTimer(isTopTimer)
+        }
+    }
+
+    private fun setRunningTimer(isTopTimer: Boolean) {
+        if (isTopTimer) {
+            runningTimer.value = RunningTimer.TopTimer()
+        } else {
+            runningTimer.value = RunningTimer.BottomTimer()
         }
     }
 
@@ -238,6 +249,7 @@ class TimerActivity : ComponentActivity() {
     }
 
     private fun stopTimer() {
+        runningTimer.value = null
         val serviceIntent = getServiceIntent()
         timerService.stopService(serviceIntent)
         viewModel.resetTimers()
