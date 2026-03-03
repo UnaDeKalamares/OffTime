@@ -8,9 +8,10 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import es.unadekalamares.offtime.datastore.DataStoreManager
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -18,28 +19,41 @@ object PermissionsManager: KoinComponent {
 
     private val dataStoreManager: DataStoreManager by inject()
 
-    private val _permissionStateFlow: MutableStateFlow<PermissionStatus> = MutableStateFlow(
-        PermissionStatus.Pending())
-    val permissionStateFlow: StateFlow<PermissionStatus> = _permissionStateFlow.asStateFlow()
+    private val _permissionSharedFlow: MutableSharedFlow<PermissionStatus> = MutableSharedFlow()
+    val permissionSharedFlow: SharedFlow<PermissionStatus> = _permissionSharedFlow.asSharedFlow()
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun checkPermission(activity: Activity) {
-        resetStateFlow()
         when (ContextCompat.checkSelfPermission(
             activity, Manifest.permission.POST_NOTIFICATIONS
         )) {
-            PERMISSION_GRANTED -> _permissionStateFlow.value = PermissionStatus.Granted()
+            PERMISSION_GRANTED -> _permissionSharedFlow.emit(PermissionStatus.Granted())
             else -> {
                 dataStoreManager.isPermissionDenied(activity).collect { denied ->
                     if (denied) {
-                        _permissionStateFlow.value = PermissionStatus.Denied()
+                        _permissionSharedFlow.emit(PermissionStatus.Denied())
                     } else {
-                        _permissionStateFlow.value = checkPermissionRequest(activity)
+                        _permissionSharedFlow.emit(checkPermissionRequest(activity))
                     }
                 }
             }
         }
+    }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    suspend fun checkPermissionImmediate(activity: Activity): PermissionStatus {
+        when (ContextCompat.checkSelfPermission(
+            activity, Manifest.permission.POST_NOTIFICATIONS)) {
+            PERMISSION_GRANTED -> return PermissionStatus.Granted()
+            else -> {
+                val denied = dataStoreManager.isPermissionDenied(activity).first()
+                if (denied) {
+                    return PermissionStatus.Denied()
+                } else {
+                    return checkPermissionRequest(activity)
+                }
+            }
+        }
     }
 
     private fun checkPermissionRequest(activity: Activity): PermissionStatus =
@@ -54,10 +68,6 @@ object PermissionsManager: KoinComponent {
 
     suspend fun setPermissionAsDenied(activity: Activity) {
         dataStoreManager.setPermissionDenied(activity, true)
-    }
-
-    fun resetStateFlow() {
-        _permissionStateFlow.value = PermissionStatus.Pending()
     }
 
 }

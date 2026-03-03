@@ -42,6 +42,8 @@ class TimerService : LifecycleService() {
 
     val timerChannel: Channel<Pair<Long, Long>> = Channel(CONFLATED)
 
+    var isPaused: Boolean = false
+
     private var timerJob: Job? = null
 
     override fun onBind(intent: Intent): IBinder {
@@ -53,16 +55,18 @@ class TimerService : LifecycleService() {
         super.onCreate()
         timerJob = lifecycleScope.launch(Dispatchers.Default) {
             while (true) {
-                delay(100)
-                val currentTime = System.currentTimeMillis()
-                if (isTopTimerRunning) {
-                    topTimerMillis += currentTime - topTimerLastSync
-                    topTimerLastSync = currentTime
-                } else {
-                    bottomTimerMillis += currentTime - bottomTimerLastSync
-                    bottomTimerLastSync = currentTime
+                if (!isPaused) {
+                    delay(100)
+                    val currentTime = System.currentTimeMillis()
+                    if (isTopTimerRunning) {
+                        topTimerMillis += currentTime - topTimerLastSync
+                        topTimerLastSync = currentTime
+                    } else {
+                        bottomTimerMillis += currentTime - bottomTimerLastSync
+                        bottomTimerLastSync = currentTime
+                    }
+                    timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
                 }
-                timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
             }
         }
     }

@@ -13,7 +13,6 @@ import es.unadekalamares.offtime.service.TimerService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -25,8 +24,10 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
 
     private var isTopTimerRunning: Boolean = true
 
-    private var formattedTopTimer: String = "00:00:00"
-    private var formattedBottomTimer: String = "00:00:00"
+    val DEFAULT_TIMER: String = "00:00:00"
+
+    private var formattedTopTimer: String = DEFAULT_TIMER
+    private var formattedBottomTimer: String = DEFAULT_TIMER
 
     private var lastProcessedSeconds: Long = 0
 
@@ -37,7 +38,7 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
         isTopTimerRunning = isTopRunning
     }
 
-    fun listenToService(service: TimerService, activity: Activity) {
+    fun listenToService(service: TimerService, activity: TimerActivity) {
         viewModelScope.launch {
             for (newTimer in service.timerChannel) {
                 formattedTopTimer = processTime(newTimer.first) ?: formattedTopTimer
@@ -46,10 +47,21 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
                     formattedTopTimer,
                     formattedBottomTimer
                 )
+                Log.i("PermissionManager", "New timer")
                 _timerUIState.value = newState
                 tryUpdateNotification(activity)
             }
         }
+    }
+
+    fun resetTimers() {
+        formattedTopTimer = DEFAULT_TIMER
+        formattedBottomTimer = DEFAULT_TIMER
+        val newState = TimerUIState(
+            formattedTopTimer,
+            formattedBottomTimer
+        )
+        _timerUIState.value = newState
     }
 
     private fun processTime(time: Long): String? {
@@ -74,16 +86,13 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
         }
     }
 
-    private fun tryUpdateNotification(activity: Activity) {
+    fun tryUpdateNotification(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             viewModelScope.launch {
-                permissionsManager.permissionStateFlow.filterNotNull().collect { permissionStatus ->
-                    if (permissionStatus is PermissionStatus.Granted) {
-                        performUpdateNotification(activity)
-                    }
+                val status = permissionsManager.checkPermissionImmediate(activity)
+                if (status is PermissionStatus.Granted) {
+                    performUpdateNotification(activity)
                 }
-                permissionsManager.checkPermission(activity)
-
             }
         } else {
             performUpdateNotification(activity)
