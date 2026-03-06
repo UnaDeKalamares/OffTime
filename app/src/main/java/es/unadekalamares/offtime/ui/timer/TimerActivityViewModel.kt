@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.unadekalamares.offtime.R
+import es.unadekalamares.offtime.data.TimerData
 import es.unadekalamares.offtime.notification.NotificationsHelper
 import es.unadekalamares.offtime.permissions.PermissionStatus
 import es.unadekalamares.offtime.permissions.PermissionsManager
@@ -31,8 +32,8 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
 
     private var lastProcessedSeconds: Long = 0
 
-    private var _timerUIState: MutableStateFlow<TimerUIState> = MutableStateFlow(TimerUIState())
-    val timerUIState: StateFlow<TimerUIState> =_timerUIState.asStateFlow()
+    private var _timerUIState: MutableStateFlow<TimerData> = MutableStateFlow(TimerData())
+    val timerUIState: StateFlow<TimerData> =_timerUIState.asStateFlow()
 
     fun setTopTimerRunning(isTopRunning: Boolean) {
         isTopTimerRunning = isTopRunning
@@ -43,7 +44,7 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
             for (newTimer in channel) {
                 formattedTopTimer = processTime(newTimer.first) ?: formattedTopTimer
                 formattedBottomTimer = processTime(newTimer.second) ?: formattedBottomTimer
-                val newState = TimerUIState(
+                val newState = TimerData(
                     formattedTopTimer,
                     formattedBottomTimer
                 )
@@ -56,7 +57,7 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
     fun resetTimers() {
         formattedTopTimer = DEFAULT_TIMER
         formattedBottomTimer = DEFAULT_TIMER
-        val newState = TimerUIState(
+        val newState = TimerData(
             formattedTopTimer,
             formattedBottomTimer
         )

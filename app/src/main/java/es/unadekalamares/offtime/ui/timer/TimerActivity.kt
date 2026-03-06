@@ -52,6 +52,8 @@ class TimerActivity : ComponentActivity() {
 
     private var willTopTimerRun: Boolean = false
     private var runningTimer: MutableStateFlow<RunningTimer?> = MutableStateFlow(null)
+    private var topTimerState: MutableStateFlow<TimerUIState> = MutableStateFlow(TimerUIState.Stopped)
+    private var bottomTimerState: MutableStateFlow<TimerUIState> = MutableStateFlow(TimerUIState.Stopped)
     private var arePermissionsDenied: Boolean = false
     private var didShowRationale: Boolean = false
     private var showSettingsDialog: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -167,7 +169,8 @@ class TimerActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 TimerUI(
-                    isEnabled = runningTimer.collectAsState().value !is RunningTimer.TopTimer,
+                    isTopTimer = true,
+                    state = topTimerState.collectAsState().value,
                     modifier = Modifier.weight(1f),
                     value = timer.value.topTimer,
                     onClick = { onTopTimerClick(true) }
@@ -180,15 +183,14 @@ class TimerActivity : ComponentActivity() {
                             isPaused.value = false
                             stopTimer()
                         } else {
-                            isPaused.value = true
-                            runningTimer.value = null
                             if (this@TimerActivity::timerServiceBinder.isInitialized) {
-                                timerServiceBinder.setIsPaused(true)
+                                pauseTimers()
                             }
                         }
                     })
                 TimerUI(
-                    isEnabled = runningTimer.collectAsState().value !is RunningTimer.BottomTimer,
+                    isTopTimer = false,
+                    state = bottomTimerState.collectAsState().value,
                     modifier = Modifier.weight(1f),
                     value = timer.value.bottomTimer,
                     onClick = { onBottomTimerClick(false) }
@@ -227,8 +229,12 @@ class TimerActivity : ComponentActivity() {
     private fun setRunningTimer(isTopTimer: Boolean) {
         if (isTopTimer) {
             runningTimer.value = RunningTimer.TopTimer()
+            topTimerState.value = TimerUIState.Running
+            bottomTimerState.value = TimerUIState.Stopped
         } else {
             runningTimer.value = RunningTimer.BottomTimer()
+            topTimerState.value = TimerUIState.Stopped
+            bottomTimerState.value = TimerUIState.Running
         }
     }
 
@@ -254,9 +260,19 @@ class TimerActivity : ComponentActivity() {
 
     private fun stopTimer() {
         runningTimer.value = null
+        topTimerState.value = TimerUIState.Stopped
+        bottomTimerState.value = TimerUIState.Stopped
         timerServiceBinder.stopService()
         unbindService(serviceConnection)
         viewModel.resetTimers()
+    }
+
+    private fun pauseTimers() {
+        isPaused.value = true
+        runningTimer.value = null
+        timerServiceBinder.setIsPaused(true)
+        topTimerState.value = TimerUIState.Stopped
+        bottomTimerState.value = TimerUIState.Stopped
     }
 
     private val serviceConnection = object : ServiceConnection {
