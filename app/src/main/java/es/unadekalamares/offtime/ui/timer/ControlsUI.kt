@@ -24,7 +24,7 @@ fun ControlsUI(
         Button(
             enabled = isEnabled,
             elevation = ButtonDefaults.elevatedButtonElevation(
-                defaultElevation = 6.dp,
+                defaultElevation = 8.dp,
                 pressedElevation = 2.dp
             ),
             onClick = onButtonClick) {

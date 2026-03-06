@@ -24,7 +24,7 @@ fun TimerUI(
     value: String,
     onClick: () -> Unit
 ) {
-    val animatedPaddingDp: Dp by animateDpAsState(if (!isEnabled) 16.dp else 0.dp)
+    val animatedPaddingDp: Dp by animateDpAsState(if (isEnabled) 0.dp else 4.dp)
 
     Box(
         modifier = modifier,
@@ -40,7 +40,7 @@ fun TimerUI(
                     bottom = 8.dp + animatedPaddingDp
                 ),
             elevation = CardDefaults.elevatedCardElevation(
-                defaultElevation = if (isEnabled) 0.dp else 8.dp
+                defaultElevation = if (isEnabled) 8.dp else 0.dp
             ),
             onClick = onClick
         ) {
