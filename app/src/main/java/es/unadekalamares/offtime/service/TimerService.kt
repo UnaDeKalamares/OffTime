@@ -28,10 +28,19 @@ class TimerService : LifecycleService() {
     private val binder = LocalBinder()
 
     inner class LocalBinder : Binder() {
-        fun getService(): TimerService = this@TimerService
+        fun getTimerChannel(): Channel<Pair<Long, Long>> = this@TimerService.timerChannel
+
+        fun stopService() {
+            this@TimerService.stopForeground(STOP_FOREGROUND_REMOVE)
+            this@TimerService.stopSelf()
+        }
+
+        fun setIsPaused(isPaused: Boolean) { this@TimerService.isPaused = isPaused }
     }
 
     private val notificationsHelper: NotificationsHelper by inject()
+
+    private var isServiceStarted: Boolean = false
 
     private var isTopTimerRunning: Boolean = true
 
@@ -40,9 +49,9 @@ class TimerService : LifecycleService() {
     private var bottomTimerMillis: Long = 0
     private var bottomTimerLastSync: Long = 0
 
-    val timerChannel: Channel<Pair<Long, Long>> = Channel(CONFLATED)
+    private val timerChannel: Channel<Pair<Long, Long>> = Channel(CONFLATED)
 
-    var isPaused: Boolean = false
+    private var isPaused: Boolean = false
 
     private var timerJob: Job? = null
 
@@ -82,21 +91,24 @@ class TimerService : LifecycleService() {
                 bottomTimerLastSync = System.currentTimeMillis()
             }
 
-            notificationsHelper.createNotificationChannel(this@TimerService)
-            val notification = notificationsHelper.buildNotification(
-                this@TimerService.getString(R.string.timer_notification_text),
-                this@TimerService
-            )
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                } else {
-                    0
-                }
-            )
+            if (!isServiceStarted) {
+                isServiceStarted = true
+                notificationsHelper.createNotificationChannel(this@TimerService)
+                val notification = notificationsHelper.buildNotification(
+                    this@TimerService.getString(R.string.timer_notification_text),
+                    this@TimerService
+                )
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                    } else {
+                        0
+                    }
+                )
+            }
         }
         return super.onStartCommand(intent, flags, startId)
     }
@@ -104,6 +116,11 @@ class TimerService : LifecycleService() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         stopSelf()
         super.onTaskRemoved(rootIntent)
+    }
+
+    override fun stopService(name: Intent?): Boolean {
+        isServiceStarted = false
+        return super.stopService(name)
     }
 
     override fun onDestroy() {

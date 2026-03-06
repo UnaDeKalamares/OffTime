@@ -9,7 +9,7 @@ import es.unadekalamares.offtime.R
 import es.unadekalamares.offtime.notification.NotificationsHelper
 import es.unadekalamares.offtime.permissions.PermissionStatus
 import es.unadekalamares.offtime.permissions.PermissionsManager
-import es.unadekalamares.offtime.service.TimerService
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,16 +38,15 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
         isTopTimerRunning = isTopRunning
     }
 
-    fun listenToService(service: TimerService, activity: TimerActivity) {
+    fun listenToServiceChannel(channel: Channel<Pair<Long, Long>>, activity: TimerActivity) {
         viewModelScope.launch {
-            for (newTimer in service.timerChannel) {
+            for (newTimer in channel) {
                 formattedTopTimer = processTime(newTimer.first) ?: formattedTopTimer
                 formattedBottomTimer = processTime(newTimer.second) ?: formattedBottomTimer
                 val newState = TimerUIState(
                     formattedTopTimer,
                     formattedBottomTimer
                 )
-                Log.i("PermissionManager", "New timer")
                 _timerUIState.value = newState
                 tryUpdateNotification(activity)
             }

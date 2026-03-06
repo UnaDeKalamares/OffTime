@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ControlsUI(
+    isEnabled: Boolean,
     isPaused: Boolean,
     onButtonClick: () -> Unit
 ) {
@@ -21,6 +22,7 @@ fun ControlsUI(
         contentAlignment = Alignment.Center
     ) {
         Button(
+            enabled = isEnabled,
             elevation = ButtonDefaults.elevatedButtonElevation(
                 defaultElevation = 6.dp,
                 pressedElevation = 2.dp

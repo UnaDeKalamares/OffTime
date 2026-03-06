@@ -1,7 +1,6 @@
 package es.unadekalamares.offtime.ui.timer
 
 import android.Manifest
-import android.app.Service
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
@@ -49,7 +48,7 @@ class TimerActivity : ComponentActivity() {
 
     private val viewModel: TimerActivityViewModel by inject()
     private val permissionsManager: PermissionsManager by inject()
-    private lateinit var timerService: TimerService
+    private lateinit var timerServiceBinder: TimerService.LocalBinder
 
     private var willTopTimerRun: Boolean = false
     private var runningTimer: MutableStateFlow<RunningTimer?> = MutableStateFlow(null)
@@ -174,6 +173,7 @@ class TimerActivity : ComponentActivity() {
                     onClick = { onTopTimerClick(true) }
                 )
                 ControlsUI(
+                    isEnabled = runningTimer.collectAsState().value != null || isPaused.collectAsState().value,
                     isPaused = isPaused.collectAsState().value,
                     onButtonClick = {
                         if (isPaused.value) {
@@ -182,8 +182,8 @@ class TimerActivity : ComponentActivity() {
                         } else {
                             isPaused.value = true
                             runningTimer.value = null
-                            if (this@TimerActivity::timerService.isInitialized) {
-                                timerService.isPaused = true
+                            if (this@TimerActivity::timerServiceBinder.isInitialized) {
+                                timerServiceBinder.setIsPaused(true)
                             }
                         }
                     })
@@ -243,30 +243,29 @@ class TimerActivity : ComponentActivity() {
         } else {
             startService(serviceIntent)
         }
-        if (this::timerService.isInitialized) {
+        if (this::timerServiceBinder.isInitialized) {
             isPaused.value = false
-            timerService.isPaused = false
+            timerServiceBinder.setIsPaused(false)
         }
-    }
-
-    private fun stopTimer() {
-        runningTimer.value = null
-        val serviceIntent = getServiceIntent()
-        timerService.stopService(serviceIntent)
-        viewModel.resetTimers()
     }
 
     private fun getServiceIntent(): Intent =
         Intent(this, TimerService::class.java)
+
+    private fun stopTimer() {
+        runningTimer.value = null
+        timerServiceBinder.stopService()
+        unbindService(serviceConnection)
+        viewModel.resetTimers()
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(
             name: ComponentName?,
             service: IBinder?
         ) {
-            val binder = service as TimerService.LocalBinder
-            timerService = binder.getService()
-            viewModel.listenToService(timerService, this@TimerActivity)
+            timerServiceBinder = service as TimerService.LocalBinder
+            viewModel.listenToServiceChannel(timerServiceBinder.getTimerChannel(), this@TimerActivity)
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -276,8 +275,7 @@ class TimerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        timerService.stopForeground(Service.STOP_FOREGROUND_REMOVE)
-        unbindService(serviceConnection)
+        stopTimer()
         super.onDestroy()
     }
 }
