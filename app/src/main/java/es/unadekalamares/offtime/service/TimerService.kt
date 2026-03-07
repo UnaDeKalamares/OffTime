@@ -11,13 +11,12 @@ import androidx.lifecycle.lifecycleScope
 import es.unadekalamares.offtime.R
 import es.unadekalamares.offtime.notification.NotificationsHelper
 import es.unadekalamares.offtime.notification.NotificationsHelper.NOTIFICATION_ID
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import java.util.Timer
+import java.util.TimerTask
 
 class TimerService : LifecycleService() {
 
@@ -53,7 +52,7 @@ class TimerService : LifecycleService() {
 
     private var isPaused: Boolean = false
 
-    private var timerJob: Job? = null
+    private var timer: Timer? = null
 
     override fun onBind(intent: Intent): IBinder {
         super.onBind(intent)
@@ -62,21 +61,24 @@ class TimerService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
-        timerJob = lifecycleScope.launch(Dispatchers.Default) {
-            while (true) {
-                if (!isPaused) {
-                    delay(100)
-                    val currentTime = System.currentTimeMillis()
-                    if (isTopTimerRunning) {
-                        topTimerMillis += currentTime - topTimerLastSync
-                        topTimerLastSync = currentTime
-                    } else {
-                        bottomTimerMillis += currentTime - bottomTimerLastSync
-                        bottomTimerLastSync = currentTime
+        timer = Timer().apply {
+            schedule(object : TimerTask() {
+                override fun run() {
+                    lifecycleScope.launch {
+                        if (!isPaused) {
+                            val currentTime = System.currentTimeMillis()
+                            if (isTopTimerRunning) {
+                                topTimerMillis += currentTime - topTimerLastSync
+                                topTimerLastSync = currentTime
+                            } else {
+                                bottomTimerMillis += currentTime - bottomTimerLastSync
+                                bottomTimerLastSync = currentTime
+                            }
+                            timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
+                        }
                     }
-                    timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
                 }
-            }
+            }, 0, 100)
         }
     }
 
@@ -124,7 +126,7 @@ class TimerService : LifecycleService() {
     }
 
     override fun onDestroy() {
-        timerJob?.cancel()
+        timer?.cancel()
         timerChannel.cancel()
         super.onDestroy()
     }
