@@ -10,6 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import es.unadekalamares.offtime.ui.theme.FireOrange80
+import es.unadekalamares.offtime.ui.theme.StopRed80
 
 @Composable
 fun ControlsUI(
@@ -26,6 +28,13 @@ fun ControlsUI(
             elevation = ButtonDefaults.elevatedButtonElevation(
                 defaultElevation = 8.dp,
                 pressedElevation = 2.dp
+            ),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isPaused) {
+                    StopRed80
+                } else {
+                    FireOrange80
+                }
             ),
             onClick = onButtonClick) {
             Icon(
