@@ -1,4 +1,4 @@
-package es.unadekalamares.offtime.permissions
+package es.unadekalamares.offtime.domain.permissions
 
 sealed class PermissionStatus {
     class Granted : PermissionStatus()

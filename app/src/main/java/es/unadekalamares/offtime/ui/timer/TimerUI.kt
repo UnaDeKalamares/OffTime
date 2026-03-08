@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import es.unadekalamares.offtime.ui.model.TimerStatus
 import es.unadekalamares.offtime.ui.theme.FireOrange10
 import es.unadekalamares.offtime.ui.theme.FireOrange30
 import es.unadekalamares.offtime.ui.theme.FireOrange80
@@ -29,7 +30,7 @@ import es.unadekalamares.offtime.ui.theme.FireOrange80
 @Composable
 fun TimerUI(
     isTopTimer: Boolean,
-    state: TimerUIState,
+    state: TimerStatus,
     modifier: Modifier,
     value: String,
     onClick: () -> Unit
@@ -39,22 +40,22 @@ fun TimerUI(
 
     val backgroundColor3 by transition.animateColor(label = "color3") { state ->
         when (state) {
-            TimerUIState.Running -> FireOrange10
-            TimerUIState.Stopped -> Transparent
+            TimerStatus.Running -> FireOrange10
+            else -> Transparent
         }
     }
 
     val backgroundColor2 by transition.animateColor(label = "color2") { state ->
         when (state) {
-            TimerUIState.Running -> FireOrange30
-            TimerUIState.Stopped -> Transparent
+            TimerStatus.Running -> FireOrange30
+            else -> Transparent
         }
     }
 
     val backgroundColor1 by transition.animateColor(label = "color1" ) { state ->
         when (state) {
-            TimerUIState.Running -> FireOrange80
-            TimerUIState.Stopped -> Transparent
+            TimerStatus.Running -> FireOrange80
+            else -> Transparent
         }
     }
 
@@ -62,22 +63,22 @@ fun TimerUI(
 
     val textColor by transition.animateColor(label = "textColor") { state ->
         when (state) {
-            TimerUIState.Running -> White
-            TimerUIState.Stopped -> MaterialTheme.colorScheme.onSurface
+            TimerStatus.Running -> White
+            else -> MaterialTheme.colorScheme.onSurface
         }
     }
 
     val paddingDp by transition.animateDp(label = "padding") { state ->
         when (state) {
-            TimerUIState.Running -> 8.dp
-            TimerUIState.Stopped -> 0.dp
+            TimerStatus.Running -> 8.dp
+            else -> 0.dp
         }
     }
 
     val elevationDp by transition.animateDp(label = "defaultElevation") { state ->
         when (state) {
-            TimerUIState.Running -> 0.dp
-            TimerUIState.Stopped -> 8.dp
+            TimerStatus.Running -> 0.dp
+            else -> 8.dp
         }
     }
 
@@ -85,7 +86,7 @@ fun TimerUI(
         modifier = modifier,
     ) {
         Card(
-            enabled = state == TimerUIState.Stopped,
+            enabled = state != TimerStatus.Running,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(

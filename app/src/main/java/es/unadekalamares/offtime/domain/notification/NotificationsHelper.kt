@@ -1,4 +1,4 @@
-package es.unadekalamares.offtime.notification
+package es.unadekalamares.offtime.domain.notification
 
 import android.Manifest
 import android.app.Notification

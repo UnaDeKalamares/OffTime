@@ -1,4 +1,4 @@
-package es.unadekalamares.offtime.service
+package es.unadekalamares.offtime.data.service
 
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -9,8 +9,9 @@ import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import es.unadekalamares.offtime.R
-import es.unadekalamares.offtime.notification.NotificationsHelper
-import es.unadekalamares.offtime.notification.NotificationsHelper.NOTIFICATION_ID
+import es.unadekalamares.offtime.domain.notification.NotificationsHelper
+import es.unadekalamares.offtime.domain.notification.NotificationsHelper.NOTIFICATION_ID
+import es.unadekalamares.offtime.ui.model.RunningTimer
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.CONFLATED
 import kotlinx.coroutines.launch
@@ -21,27 +22,29 @@ import java.util.TimerTask
 class TimerService : LifecycleService() {
 
     companion object {
-        const val IS_TOP_ARG = "IS_TOP_ARG"
+        const val RUNNING_TIMER = "RUNNING_TIMER"
     }
 
     private val binder = LocalBinder()
 
     inner class LocalBinder : Binder() {
-        fun getTimerChannel(): Channel<Pair<Long, Long>> = this@TimerService.timerChannel
+        fun getTimerChannel(): Channel<Pair<Long, Long>> = timerChannel
 
         fun stopService() {
-            this@TimerService.stopForeground(STOP_FOREGROUND_REMOVE)
-            this@TimerService.stopSelf()
+            currentRunningTimer = RunningTimer.None
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
 
-        fun setIsPaused(isPaused: Boolean) { this@TimerService.isPaused = isPaused }
+        fun pause() {
+            currentRunningTimer = RunningTimer.None
+        }
     }
 
     private val notificationsHelper: NotificationsHelper by inject()
 
     private var isServiceStarted: Boolean = false
-
-    private var isTopTimerRunning: Boolean = true
+    private var currentRunningTimer: RunningTimer = RunningTimer.None
 
     private var topTimerMillis: Long = 0
     private var topTimerLastSync: Long = 0
@@ -49,8 +52,6 @@ class TimerService : LifecycleService() {
     private var bottomTimerLastSync: Long = 0
 
     private val timerChannel: Channel<Pair<Long, Long>> = Channel(CONFLATED)
-
-    private var isPaused: Boolean = false
 
     private var timer: Timer? = null
 
@@ -65,31 +66,47 @@ class TimerService : LifecycleService() {
             schedule(object : TimerTask() {
                 override fun run() {
                     lifecycleScope.launch {
-                        if (!isPaused) {
-                            val currentTime = System.currentTimeMillis()
-                            if (isTopTimerRunning) {
-                                topTimerMillis += currentTime - topTimerLastSync
-                                topTimerLastSync = currentTime
-                            } else {
-                                bottomTimerMillis += currentTime - bottomTimerLastSync
-                                bottomTimerLastSync = currentTime
+                        when (currentRunningTimer) {
+                            RunningTimer.None -> {
+                                // Do nothing
                             }
-                            timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
+                            else -> processNewTime(currentRunningTimer)
                         }
+
                     }
                 }
             }, 0, 100)
         }
     }
 
+    private suspend fun processNewTime(runningTimer: RunningTimer) {
+        val currentTime = System.currentTimeMillis()
+        if (runningTimer.isTopTimer()) {
+            topTimerMillis += currentTime - topTimerLastSync
+            topTimerLastSync = currentTime
+        } else {
+            bottomTimerMillis += currentTime - bottomTimerLastSync
+            bottomTimerLastSync = currentTime
+        }
+        timerChannel.send(Pair(topTimerMillis, bottomTimerMillis))
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
-            val isTop = it.getBooleanExtra(IS_TOP_ARG, false)
-            isTopTimerRunning = isTop
-
-            if (isTop) {
-                topTimerLastSync = System.currentTimeMillis()
+            currentRunningTimer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getSerializableExtra<RunningTimer>(
+                    RUNNING_TIMER,
+                    RunningTimer::class.java
+                ) ?: RunningTimer.None
             } else {
+                (intent.getSerializableExtra(
+                    RUNNING_TIMER
+                ) ?: RunningTimer.None) as RunningTimer
+            }
+
+            if (currentRunningTimer.isTopTimer()) {
+                topTimerLastSync = System.currentTimeMillis()
+            } else if (currentRunningTimer.isBottomTimer()) {
                 bottomTimerLastSync = System.currentTimeMillis()
             }
 

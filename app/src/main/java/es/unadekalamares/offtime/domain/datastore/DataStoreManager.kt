@@ -1,4 +1,4 @@
-package es.unadekalamares.offtime.datastore
+package es.unadekalamares.offtime.domain.datastore
 
 import android.content.Context
 import androidx.datastore.core.DataStore

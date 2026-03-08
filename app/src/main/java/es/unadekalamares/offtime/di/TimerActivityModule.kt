@@ -1,6 +1,6 @@
 package es.unadekalamares.offtime.di
 
-import es.unadekalamares.offtime.permissions.PermissionsManager
+import es.unadekalamares.offtime.domain.permissions.PermissionsManager
 import es.unadekalamares.offtime.ui.timer.TimerActivityViewModel
 import org.koin.dsl.module
 

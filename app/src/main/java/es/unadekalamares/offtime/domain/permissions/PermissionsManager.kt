@@ -1,4 +1,4 @@
-package es.unadekalamares.offtime.permissions
+package es.unadekalamares.offtime.domain.permissions
 
 import android.Manifest
 import android.app.Activity
@@ -7,7 +7,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import es.unadekalamares.offtime.datastore.DataStoreManager
+import es.unadekalamares.offtime.domain.datastore.DataStoreManager
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow

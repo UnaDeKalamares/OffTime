@@ -6,11 +6,15 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.unadekalamares.offtime.R
-import es.unadekalamares.offtime.data.TimerData
-import es.unadekalamares.offtime.notification.NotificationsHelper
-import es.unadekalamares.offtime.permissions.PermissionStatus
-import es.unadekalamares.offtime.permissions.PermissionsManager
-import kotlinx.coroutines.channels.Channel
+import es.unadekalamares.offtime.data.service.TimerService
+import es.unadekalamares.offtime.domain.notification.NotificationsHelper
+import es.unadekalamares.offtime.domain.permissions.PermissionStatus
+import es.unadekalamares.offtime.domain.permissions.PermissionsManager
+import es.unadekalamares.offtime.ui.model.RunningTimer
+import es.unadekalamares.offtime.ui.model.TimerDataParser
+import es.unadekalamares.offtime.ui.model.TimerState
+import es.unadekalamares.offtime.ui.model.TimerStatus
+import es.unadekalamares.offtime.ui.model.TimerUIState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,68 +26,80 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
 
     private val notificationHelper: NotificationsHelper by inject()
     private val permissionsManager: PermissionsManager by inject()
+    private val timeDataParser: TimerDataParser by inject()
 
-    private var isTopTimerRunning: Boolean = true
+    private lateinit var timerServiceBinder: TimerService.LocalBinder
 
-    val DEFAULT_TIMER: String = "00:00:00"
+    private var topTimerStatus: TimerStatus = TimerStatus.Stopped
+    private var bottomTimerStatus: TimerStatus = TimerStatus.Stopped
+    private var lastTimerUIState : TimerUIState = TimerUIState()
 
-    private var formattedTopTimer: String = DEFAULT_TIMER
-    private var formattedBottomTimer: String = DEFAULT_TIMER
+    private var lastTopSeconds: Long = 0
+    private var lastBottomSeconds: Long = 0
 
-    private var lastProcessedSeconds: Long = 0
+    private var _timerUIState: MutableStateFlow<TimerUIState> = MutableStateFlow(lastTimerUIState)
+    val timerUIState: StateFlow<TimerUIState> =_timerUIState.asStateFlow()
 
-    private var _timerUIState: MutableStateFlow<TimerData> = MutableStateFlow(TimerData())
-    val timerUIState: StateFlow<TimerData> =_timerUIState.asStateFlow()
-
-    fun setTopTimerRunning(isTopRunning: Boolean) {
-        isTopTimerRunning = isTopRunning
+    fun initServiceBinder(binder: TimerService.LocalBinder, activity: Activity) {
+        timerServiceBinder = binder
+        listenToServiceChannel(activity)
     }
 
-    fun listenToServiceChannel(channel: Channel<Pair<Long, Long>>, activity: TimerActivity) {
+    private fun listenToServiceChannel(activity: Activity) {
         viewModelScope.launch {
-            for (newTimer in channel) {
-                formattedTopTimer = processTime(newTimer.first) ?: formattedTopTimer
-                formattedBottomTimer = processTime(newTimer.second) ?: formattedBottomTimer
-                val newState = TimerData(
-                    formattedTopTimer,
-                    formattedBottomTimer
+            for (newTimer in timerServiceBinder.getTimerChannel()) {
+                val formattedTopTimer = processTime(newTimer.first, RunningTimer.TopTimer)
+                val formattedBottomTimer = processTime(newTimer.second, RunningTimer.BottomTimer)
+                processNewUIState(
+                    formattedTopTimer ?: lastTimerUIState.topTimer.timer,
+                    formattedBottomTimer ?: lastTimerUIState.bottomTimer.timer
                 )
-                _timerUIState.value = newState
-                tryUpdateNotification(activity)
+                if (formattedTopTimer != null || formattedBottomTimer != null) {
+                    tryUpdateNotification(activity)
+                }
             }
         }
     }
 
-    fun resetTimers() {
-        formattedTopTimer = DEFAULT_TIMER
-        formattedBottomTimer = DEFAULT_TIMER
-        val newState = TimerData(
-            formattedTopTimer,
-            formattedBottomTimer
-        )
-        _timerUIState.value = newState
+    private fun processTime(time: Long, runningTimer: RunningTimer): String? {
+        val seconds = timeDataParser.getSeconds(time)
+        when (runningTimer) {
+            RunningTimer.TopTimer -> {
+                if (seconds != lastTopSeconds) {
+                    lastTopSeconds = seconds
+                    return timeDataParser.toReadableTime(time)
+                } else {
+                    return null
+                }
+            }
+            else -> {
+                if (seconds != lastBottomSeconds) {
+                    lastBottomSeconds = seconds
+                    return timeDataParser.toReadableTime(time)
+                } else {
+                    return null
+                }
+            }
+        }
     }
 
-    private fun processTime(time: Long): String? {
-        val seconds = (time / 1000)
-        if (lastProcessedSeconds != seconds) {
-            lastProcessedSeconds = seconds
-            val minutes = (seconds / 60)
-            val hours = (minutes / 60)
-            val roundedSeconds = seconds % 60
-            val roundedMinutes = minutes % 60
-            val roundedHours = hours % 60
-            val formattedTime = String.format(
-                "%02d:%02d:%02d",
-                roundedHours,
-                roundedMinutes,
-                roundedSeconds
+    fun processNewUIState(formattedTopTimer: String, formattedBottomTimer: String) {
+        val newUiState = TimerUIState(
+            topTimer = TimerState(
+                status = topTimerStatus,
+                timer = formattedTopTimer
+            ),
+            bottomTimer = TimerState(
+                status = bottomTimerStatus,
+                timer = formattedBottomTimer
             )
-            Log.i("TimerService", "Time: $time; Minutes: $minutes; Seconds: $seconds")
-            return formattedTime
-        } else {
-            return null
-        }
+        )
+        emitUIState(newUiState)
+    }
+
+    fun emitUIState(uiState: TimerUIState) {
+        lastTimerUIState = uiState
+        _timerUIState.value = uiState
     }
 
     fun tryUpdateNotification(activity: Activity) {
@@ -101,13 +117,21 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
 
     private fun performUpdateNotification(activity: Activity) {
         try {
-            val text = if (isTopTimerRunning) {
-                activity.getString(R.string.notification_top_timer_text, formattedTopTimer)
-            } else {
+            val text = if (lastTimerUIState.isTopRunning()) {
+                Log.i("ViewModel", "Update top timer")
+                activity.getString(
+                    R.string.notification_top_timer_text,
+                    lastTimerUIState.topTimer.timer
+                )
+            } else if (lastTimerUIState.isBottomRunning()) {
+                Log.i("ViewModel", "Update bottom timer")
                 activity.getString(
                     R.string.notification_bottom_timer_text,
-                    formattedBottomTimer
+                    lastTimerUIState.bottomTimer.timer
                 )
+            } else {
+                Log.i("ViewModel", "Update pause")
+                activity.getString(R.string.notification_paused_timer_text)
             }
             notificationHelper.updateNotification(
                 text,
@@ -116,6 +140,38 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
         } catch (e: SecurityException) {
             // Won't happen, already verified
         }
+    }
+
+    fun notifyTimerStarted(runningTimer: RunningTimer) {
+        when (runningTimer) {
+            RunningTimer.TopTimer -> {
+                topTimerStatus = TimerStatus.Running
+                bottomTimerStatus = TimerStatus.Paused
+            }
+            RunningTimer.BottomTimer -> {
+                topTimerStatus = TimerStatus.Paused
+                bottomTimerStatus = TimerStatus.Running
+            }
+            RunningTimer.None -> {
+                // Do nothing
+            }
+        }
+    }
+
+    fun pauseTimers(activity: Activity) {
+        timerServiceBinder.pause()
+        topTimerStatus = TimerStatus.Paused
+        bottomTimerStatus = TimerStatus.Paused
+        processNewUIState(
+            lastTimerUIState.topTimer.timer,
+            lastTimerUIState.bottomTimer.timer
+        )
+        tryUpdateNotification(activity)
+    }
+
+    fun stopTimers() {
+        timerServiceBinder.stopService()
+        emitUIState(TimerUIState())
     }
 
 }
