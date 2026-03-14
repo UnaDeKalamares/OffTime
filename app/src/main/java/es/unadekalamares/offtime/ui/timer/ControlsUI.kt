@@ -1,6 +1,8 @@
 package es.unadekalamares.offtime.ui.timer
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -15,12 +17,16 @@ import es.unadekalamares.offtime.ui.theme.StopRed80
 
 @Composable
 fun ControlsUI(
+    configuration: Configuration,
     isEnabled: Boolean,
     isPaused: Boolean,
     onButtonClick: () -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = when (configuration.orientation) {
+            Configuration.ORIENTATION_PORTRAIT -> Modifier.fillMaxWidth()
+            else -> Modifier.fillMaxHeight()
+        },
         contentAlignment = Alignment.Center
     ) {
         Button(

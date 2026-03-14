@@ -1,9 +1,11 @@
 package es.unadekalamares.offtime.ui.timer
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -33,6 +37,7 @@ import es.unadekalamares.offtime.data.service.TimerService
 import es.unadekalamares.offtime.domain.permissions.PermissionStatus
 import es.unadekalamares.offtime.domain.permissions.PermissionsManager
 import es.unadekalamares.offtime.ui.model.RunningTimer
+import es.unadekalamares.offtime.ui.model.TimerUIState
 import es.unadekalamares.offtime.ui.theme.OffTimeTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -162,45 +167,91 @@ class TimerActivity : ComponentActivity() {
         onTopTimerClick: (RunningTimer) -> Unit,
         onBottomTimerClick: (RunningTimer) -> Unit
     ) {
+        val configuration = LocalConfiguration.current
         val timer = viewModel.timerUIState.collectAsState()
         Scaffold(
             modifier = Modifier.fillMaxSize()
         ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(MaterialTheme.colorScheme.background),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                TimerUI(
-                    isTopTimer = true,
-                    state = timer.value.topTimer.status,
-                    modifier = Modifier.weight(1f),
-                    value = timer.value.topTimer.timer,
-                    onClick = { onTopTimerClick(RunningTimer.TopTimer) }
-                )
-                ControlsUI(
-                    isEnabled = timer.value.isTopRunning() || timer.value.isBottomRunning() || timer.value.areAllPaused(),
-                    isPaused = timer.value.areAllPaused(),
-                    onButtonClick = {
-                        if (timer.value.areAllPaused()) {
-                            stopTimer()
-                        } else {
-                            pauseTimers()
-                        }
-                    })
-                TimerUI(
-                    isTopTimer = false,
-                    state = timer.value.bottomTimer.status,
-                    modifier = Modifier.weight(1f),
-                    value = timer.value.bottomTimer.timer,
-                    onClick = { onBottomTimerClick(RunningTimer.BottomTimer) }
-                )
+            when (configuration.orientation) {
+                Configuration.ORIENTATION_PORTRAIT -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .background(MaterialTheme.colorScheme.background),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        DrawUI(
+                            configuration = configuration,
+                            timer = timer.value,
+                            topModifier = Modifier.weight(1f),
+                            onTopTimerClick = onTopTimerClick,
+                            bottomModifier = Modifier.weight(1f),
+                            onBottomTimerClick = onBottomTimerClick
+                        )
+                    }
+                }
+                else -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .background(MaterialTheme.colorScheme.background),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        DrawUI(
+                            configuration = configuration,
+                            timer = timer.value,
+                            topModifier = Modifier.weight(1f),
+                            onTopTimerClick = onTopTimerClick,
+                            bottomModifier = Modifier.weight(1f),
+                            onBottomTimerClick = onBottomTimerClick
+                        )
+                    }
+                }
             }
         }
 
+    }
+
+    @Composable
+    private fun DrawUI(
+        timer: TimerUIState,
+        configuration: Configuration,
+        @SuppressLint("ModifierParameter") topModifier: Modifier,
+        onTopTimerClick: (RunningTimer) -> Unit,
+        bottomModifier: Modifier,
+        onBottomTimerClick: (RunningTimer) -> Unit
+    ) {
+        TimerUI(
+            configuration = configuration,
+            isTopTimer = true,
+            state = timer.topTimer.status,
+            modifier = topModifier,
+            value = timer.topTimer.timer,
+            onClick = { onTopTimerClick(RunningTimer.TopTimer) }
+        )
+        ControlsUI(
+            configuration = configuration,
+            isEnabled = timer.isTopRunning() || timer.isBottomRunning() || timer.areAllPaused(),
+            isPaused = timer.areAllPaused(),
+            onButtonClick = {
+                if (timer.areAllPaused()) {
+                    stopTimer()
+                } else {
+                    pauseTimers()
+                }
+            })
+        TimerUI(
+            configuration = configuration,
+            isTopTimer = false,
+            state = timer.bottomTimer.status,
+            modifier = bottomModifier,
+            value = timer.bottomTimer.timer,
+            onClick = { onBottomTimerClick(RunningTimer.BottomTimer) }
+        )
     }
 
     private fun launchPermissionRequest() {

@@ -1,10 +1,12 @@
 package es.unadekalamares.offtime.ui.timer
 
+import android.content.res.Configuration
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,6 +31,7 @@ import es.unadekalamares.offtime.ui.theme.FireOrange80
 
 @Composable
 fun TimerUI(
+    configuration: Configuration,
     isTopTimer: Boolean,
     state: TimerStatus,
     modifier: Modifier,
@@ -68,11 +71,29 @@ fun TimerUI(
         }
     }
 
-    val paddingDp by transition.animateDp(label = "padding") { state ->
+    val animatedPaddingDp by transition.animateDp(label = "padding") { state ->
         when (state) {
             TimerStatus.Running -> 8.dp
             else -> 0.dp
         }
+    }
+
+    val paddingValues = when (configuration.orientation) {
+        Configuration.ORIENTATION_PORTRAIT ->
+            PaddingValues(
+                start = 16.dp + animatedPaddingDp,
+                top = 8.dp + animatedPaddingDp,
+                end = 16.dp + animatedPaddingDp,
+                bottom = 8.dp + animatedPaddingDp
+            )
+        else ->
+            PaddingValues(
+                start = 8.dp + animatedPaddingDp,
+                top = 16.dp + animatedPaddingDp,
+                end = 8.dp + animatedPaddingDp,
+                bottom = 16.dp + animatedPaddingDp
+            )
+
     }
 
     val elevationDp by transition.animateDp(label = "defaultElevation") { state ->
@@ -90,10 +111,7 @@ fun TimerUI(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    start = 16.dp + paddingDp,
-                    top = 8.dp + paddingDp,
-                    end = 16.dp + paddingDp,
-                    bottom = 8.dp + paddingDp
+                    paddingValues
                 ),
             elevation = CardDefaults.elevatedCardElevation(
                 defaultElevation = elevationDp
