@@ -38,10 +38,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class TimerActivity : ComponentActivity() {
 
-    private val viewModel: TimerActivityViewModel by inject()
+    private val viewModel: TimerActivityViewModel by viewModel()
     private val permissionsManager: PermissionsManager by inject()
 
     private var requestedRunningTimer: RunningTimer = RunningTimer.None
@@ -49,6 +50,8 @@ class TimerActivity : ComponentActivity() {
     private var arePermissionsDenied: Boolean = false
     private var didShowRationale: Boolean = false
     private var showSettingsDialog: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    private var isServiceBound: Boolean = false
 
     private lateinit var activityPermissionLauncher: ActivityResultLauncher<String>
 
@@ -58,6 +61,18 @@ class TimerActivity : ComponentActivity() {
         setupActivityLauncher()
         setupCollector()
         setupUI()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        getServiceIntent().also {
+            attemptServiceBinding(it)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        attemptServiceUnbinding()
     }
 
     private fun setupActivityLauncher() {
@@ -215,7 +230,7 @@ class TimerActivity : ComponentActivity() {
 
     private fun startTimer() {
         val serviceIntent = getServiceIntent().also {
-            bindService(it, serviceConnection, 0)
+            attemptServiceBinding(it)
         }
         serviceIntent.putExtra(TimerService.RUNNING_TIMER, requestedRunningTimer)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -229,10 +244,22 @@ class TimerActivity : ComponentActivity() {
     private fun getServiceIntent(): Intent =
         Intent(this, TimerService::class.java)
 
+    private fun attemptServiceBinding(serviceIntent: Intent) {
+        isServiceBound = true
+        bindService(serviceIntent, serviceConnection, 0)
+    }
+
     private fun stopTimer() {
         requestedRunningTimer = RunningTimer.None
         viewModel.stopTimers()
-        unbindService(serviceConnection)
+        attemptServiceUnbinding()
+    }
+
+    private fun attemptServiceUnbinding() {
+        if (isServiceBound) {
+            unbindService(serviceConnection)
+            isServiceBound = false
+        }
     }
 
     private fun pauseTimers() {
@@ -257,10 +284,6 @@ class TimerActivity : ComponentActivity() {
 
     }
 
-    override fun onDestroy() {
-        stopTimer()
-        super.onDestroy()
-    }
 }
 /*
 @Preview(showBackground = true)
