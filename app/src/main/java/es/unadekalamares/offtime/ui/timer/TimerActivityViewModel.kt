@@ -170,7 +170,9 @@ class TimerActivityViewModel : ViewModel(), KoinComponent {
     }
 
     fun stopTimers() {
-        timerServiceBinder.stopService()
+        if (this::timerServiceBinder.isInitialized) {
+            timerServiceBinder.stopService()
+        }
         emitUIState(TimerUIState())
     }
 
